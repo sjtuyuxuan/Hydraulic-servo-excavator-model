@@ -1,0 +1,19 @@
+Servo servo_1;
+Servo servo_servo;
+void motor(int dat){
+  dat = map(dat,0,9,0,180);
+  Serial.println(dat);
+  servo_1.write(dat);
+}
+void setup(){
+  Serial.begin(9600);
+  servo_1.attach(9);
+  servo_servo.attach(10);
+  servo_servo.write(90);
+  }
+void loop(){
+  int dat = Serial.read();
+  dat-=48;
+  if(dat!=-49)
+    motor(dat);
+  }
