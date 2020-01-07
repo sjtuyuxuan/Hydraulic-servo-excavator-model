@@ -1,0 +1,141 @@
+#if (ARDUINO >= 100)
+ #include <Arduino.h>
+#else
+ #include <WProgram.h>
+#endif
+#include <Wire.h>
+#include "Adafruit_PWMServoDriver.h"
+#include <Servo.h> 
+#include <ros.h>
+#include <std_msgs/UInt16.h>
+#if (ARDUINO >= 100)
+ #include <Arduino.h>
+#else
+ #include <WProgram.h>
+#endif
+#include <ros.h>
+#include <rosserial_arduino/Adc.h>
+int M1SLP = 2;    
+int M1PWM = 5;
+int M1DIR = 4;
+int M1CS = A0;
+int M2SLP = 8;
+int M2PWM = 6;
+int M2DIR = 7;
+int M2CS = A1;
+Servo BIGservo;
+ros::NodeHandle nh;
+rosserial_arduino::Adc adc_msg;
+
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
+
+void servo_cb( const rosserial_arduino::Adc& data){
+
+  writeServo(1,data.adc1);
+  writeServo(2,data.adc2);
+  writeServo(3,data.adc3);
+  BIGservo.writeMicroseconds(data.adc4);//set servo angle, should be from 0-180 enableM2();
+  setM2Speed(data.adc5);
+  setM1Speed(-data.adc5); //toggle led  
+}
+
+uint8_t servonum = 0;
+
+ros::Publisher p("adc", &adc_msg);
+ros::Subscriber<rosserial_arduino::Adc> sub("servo", servo_cb);
+void setup() {
+  Serial.begin(9600);
+  pwm.begin();
+  pwm.setPWMFreq(50); 
+  BIGservo.attach(9,500,2500); 
+  nh.initNode();
+  nh.initNode();
+  nh.subscribe(sub);
+  nh.advertise(p);
+  pinMode(M1SLP, OUTPUT);
+  pinMode(M1PWM, OUTPUT);
+  pinMode(M1CS, INPUT);
+  pinMode(M1DIR, OUTPUT);
+  pinMode(M2SLP, OUTPUT);
+  pinMode(M2PWM, OUTPUT);
+  pinMode(M2CS, INPUT);
+  pinMode(M2DIR, OUTPUT);
+  enableM1();
+  enableM2();
+}
+
+void setServoPulse(uint8_t n, double pulse) {
+  double pulselength;
+  pulselength = 1000000;
+  pulselength /= 50;   
+  pulselength /= 4096; 
+  pulse *= 1000;
+  pulse /= pulselength;
+  pwm.setPWM(n, 0, pulse);
+}
+
+void writeServo(uint8_t n,uint8_t angle){
+  double pulse;
+  pulse=0.5+angle/90.0;
+  setServoPulse(n,pulse);
+}
+
+int averageAnalog(int pin){
+  int v=0;
+  for(int i=0; i<10; i++) v+= analogRead(pin);
+  return v/10;
+}
+long adc_timer;
+void setM1Speed(int m1Speed){ 
+  if(m1Speed < 0){
+    digitalWrite(M1DIR,LOW);
+    analogWrite(M1PWM,-m1Speed);
+  }  
+  else{
+    digitalWrite(M1DIR,HIGH);
+    analogWrite(M1PWM,m1Speed);    
+  }
+}
+void setM2Speed(int m2Speed){   
+  if(m2Speed < 0){
+    digitalWrite(M2DIR,LOW);
+    analogWrite(M2PWM,-m2Speed);
+  }  
+  else{
+    digitalWrite(M2DIR,HIGH);
+    analogWrite(M2PWM,m2Speed);    
+  }
+}
+void enableM1(){   
+  digitalWrite(M1SLP,HIGH);
+}
+void enableM2(){   
+  digitalWrite(M2SLP,HIGH);
+}
+void disableM1(){  
+  digitalWrite(M1SLP,LOW);
+}
+void disableM2(){    
+  digitalWrite(M1SLP,LOW);
+}
+unsigned int getM1Current(){  
+  return analogRead(M1CS);
+}
+unsigned int getM2Current(){ 
+  return analogRead(M2CS);
+}
+void loop(){
+  adc_msg.adc0 = averageAnalog(0);
+  adc_msg.adc1 = averageAnalog(8);
+  adc_msg.adc2 = averageAnalog(9);
+  adc_msg.adc3 = averageAnalog(10);
+  adc_msg.adc4 = averageAnalog(4);
+  adc_msg.adc5 = averageAnalog(5);
+    
+  p.publish(&adc_msg);
+ 
+  nh.spinOnce();
+  delay(500);
+}
+
+
