@@ -18,4 +18,4 @@ We design to connect and control all the components of the excavator by the robo
 #### Generate results process:
 1. Run <control_Oil_Pump> on the Arduino that connect with oil pump
 2. Run <control_Valves> on the Arduino that connect with Valves
-3. Run main in the ROS system which connect to both Arduino
+3. Run main in the ROS which connect to both Arduinos.
